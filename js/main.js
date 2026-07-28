@@ -312,10 +312,16 @@ function el(id) {
   return document.getElementById(id);
 }
 
+const MAX_GAMEPAD_NAME_LENGTH = 40;
+const GAMEPAD_NAME_TRUNCATE_LENGTH = 37;
+
 window.addEventListener("gamepadconnected", function(e) {
   let playerIdx = e.gamepad.index;
   if(playerIdx < 2) {
-    let label = e.gamepad.id.length > 40 ? e.gamepad.id.slice(0, 37) + "..." : e.gamepad.id;
+    let id = e.gamepad.id;
+    let label = id.length > MAX_GAMEPAD_NAME_LENGTH
+      ? id.slice(0, GAMEPAD_NAME_TRUNCATE_LENGTH) + "..."
+      : id;
     log("🎮 P" + (playerIdx + 1) + " gamepad connected: " + label);
     updateGamepadStatus(playerIdx, label);
   }

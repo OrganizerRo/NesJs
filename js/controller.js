@@ -1,5 +1,8 @@
 
 const LS_KEY = "nesjs_gamepad_mappings";
+const LISTEN_TIMEOUT_MS = 5000;
+const TIMEOUT_MESSAGE_DURATION_MS = 1500;
+const STATUS_MESSAGE_DURATION_MS = 3000;
 
 const NES_BUTTONS = ["A", "B", "SELECT", "START", "UP", "DOWN", "LEFT", "RIGHT"];
 
@@ -131,8 +134,8 @@ function startListening(nesBtn) {
       cell.textContent = "(timed out — no input received)";
       cell.className = "assignment-cell";
     }
-    setTimeout(function() { renderTable(); }, 1500);
-  }, 5000);
+    setTimeout(function() { renderTable(); }, TIMEOUT_MESSAGE_DURATION_MS);
+  }, LISTEN_TIMEOUT_MS);
 
   // Polling loop
   function poll() {
@@ -227,7 +230,7 @@ function showSaveStatus(msg, isError) {
   let el = document.getElementById("save-status");
   el.textContent = msg;
   el.className = "status-msg " + (isError ? "err" : "ok");
-  setTimeout(function() { el.textContent = ""; el.className = "status-msg"; }, 3000);
+  setTimeout(function() { el.textContent = ""; el.className = "status-msg"; }, STATUS_MESSAGE_DURATION_MS);
 }
 
 // Export / Import
@@ -251,7 +254,8 @@ function importMapping() {
     return;
   }
 
-  // Strip JS variable wrapper if present (e.g. "const gamepadMappings = ...;")
+  // Strip JS variable wrapper if present (supports simple patterns like
+  // "const name = ..." or "let name = ..."; does not handle export/multiline declarations)
   let jsonStr = raw.replace(/^\s*(?:const|let|var)\s+\w+\s*=\s*/, "").replace(/;\s*$/, "");
 
   let parsed;
@@ -298,3 +302,12 @@ function showEiStatus(msg, isError) {
   el.textContent = msg;
   el.className = "ei-status " + (isError ? "err" : "ok");
 }
+
+// Wire up all button event listeners (avoids inline onclick in HTML)
+document.getElementById("tab-p1").addEventListener("click", function() { switchTab(1); });
+document.getElementById("tab-p2").addEventListener("click", function() { switchTab(2); });
+document.getElementById("btn-reset").addEventListener("click", resetToDefaults);
+document.getElementById("btn-save").addEventListener("click", saveMappings);
+document.getElementById("btn-export-json").addEventListener("click", exportJSON);
+document.getElementById("btn-export-js").addEventListener("click", exportJS);
+document.getElementById("btn-import").addEventListener("click", importMapping);

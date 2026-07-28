@@ -10,8 +10,8 @@
   <h2>Map gamepad buttons to NES inputs for each player</h2>
 
   <div class="tabs">
-    <button class="tab-btn active" id="tab-p1" onclick="switchTab(1)">Player 1</button>
-    <button class="tab-btn" id="tab-p2" onclick="switchTab(2)">Player 2</button>
+    <button class="tab-btn active" id="tab-p1">Player 1</button>
+    <button class="tab-btn" id="tab-p2">Player 2</button>
   </div>
 
   <table class="mapping-table">
@@ -28,8 +28,8 @@
   </table>
 
   <div class="actions">
-    <button id="btn-reset" onclick="resetToDefaults()">Reset to Defaults</button>
-    <button id="btn-save" onclick="saveMappings()">💾 Save</button>
+    <button id="btn-reset">Reset to Defaults</button>
+    <button id="btn-save">💾 Save</button>
     <span class="status-msg" id="save-status"></span>
   </div>
 
@@ -37,9 +37,9 @@
     <h3>Export / Import Mappings</h3>
     <textarea id="mapping-textarea" placeholder="Mapping JSON will appear here…"></textarea>
     <div class="ei-buttons">
-      <button onclick="exportJSON()">Export JSON</button>
-      <button onclick="exportJS()">Export as JS</button>
-      <button id="btn-import" onclick="importMapping()">Import</button>
+      <button id="btn-export-json">Export JSON</button>
+      <button id="btn-export-js">Export as JS</button>
+      <button id="btn-import">Import</button>
     </div>
     <div class="ei-status" id="ei-status"></div>
   </div>
