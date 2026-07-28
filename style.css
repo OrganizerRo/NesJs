@@ -27,3 +27,20 @@ pre {
   image-rendering: crisp-edges;
   image-rendering: pixelated;
 }
+
+.gp-indicator {
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.gp-status {
+  font-weight: bold;
+}
+
+.gp-connected {
+  color: #2a7a2a;
+}
+
+.gp-disconnected {
+  color: #888;
+}
