@@ -34,6 +34,50 @@ let controlsP2 = {
   g: nes.INPUT.A
 }
 
+// Default gamepad mappings (Standard Gamepad layout)
+const DEFAULT_GAMEPAD_MAPPING = {
+  buttons: {
+    0: "A",
+    1: "B",
+    8: "SELECT",
+    9: "START",
+    12: "UP",
+    13: "DOWN",
+    14: "LEFT",
+    15: "RIGHT"
+  },
+  axes: { deadzone: 0.5 }
+};
+
+let gamepadMappings = [
+  JSON.parse(JSON.stringify(DEFAULT_GAMEPAD_MAPPING)),
+  JSON.parse(JSON.stringify(DEFAULT_GAMEPAD_MAPPING))
+];
+
+// Try loading saved mappings from localStorage
+(function() {
+  try {
+    let saved = localStorage.getItem("nesjs_gamepad_mappings");
+    if(saved) {
+      let parsed = JSON.parse(saved);
+      if(Array.isArray(parsed) && parsed.length === 2 &&
+         parsed[0].buttons && parsed[0].axes && parsed[1].buttons && parsed[1].axes) {
+        gamepadMappings = parsed;
+      }
+    }
+  } catch(e) {
+    // ignore, use defaults
+  }
+})();
+
+// Per-player previous button state for transition detection
+let prevGamepadButtons = [[], []];
+// Per-player previous axis-synthesized direction state
+let prevAxisState = [
+  { left: false, right: false, up: false, down: false },
+  { left: false, right: false, up: false, down: false }
+];
+
 zip.workerScriptsPath = "lib/";
 zip.useWebWorkers = false;
 
@@ -176,7 +220,82 @@ function update() {
   loopId = requestAnimationFrame(update);
 }
 
+function pollGamepads() {
+  let gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for(let playerIdx = 0; playerIdx < 2; playerIdx++) {
+    let gp = gamepads[playerIdx];
+    let player = playerIdx + 1;
+    let mapping = gamepadMappings[playerIdx];
+    let prev = prevGamepadButtons[playerIdx];
+
+    if(!gp) {
+      // release all buttons if gamepad was previously present
+      if(prev.length > 0) {
+        for(let btnIdx in mapping.buttons) {
+          nes.setButtonReleased(player, nes.INPUT[mapping.buttons[btnIdx]]);
+        }
+        prevGamepadButtons[playerIdx] = [];
+        let axPrev = prevAxisState[playerIdx];
+        if(axPrev.left) { nes.setButtonReleased(player, nes.INPUT.LEFT); axPrev.left = false; }
+        if(axPrev.right) { nes.setButtonReleased(player, nes.INPUT.RIGHT); axPrev.right = false; }
+        if(axPrev.up) { nes.setButtonReleased(player, nes.INPUT.UP); axPrev.up = false; }
+        if(axPrev.down) { nes.setButtonReleased(player, nes.INPUT.DOWN); axPrev.down = false; }
+      }
+      continue;
+    }
+
+    // Digital buttons
+    for(let btnIdx in mapping.buttons) {
+      let gpBtn = parseInt(btnIdx);
+      let nesBtn = nes.INPUT[mapping.buttons[btnIdx]];
+      let pressed = gp.buttons[gpBtn] ? gp.buttons[gpBtn].pressed : false;
+      let wasPrev = !!prev[gpBtn];
+      if(pressed && !wasPrev) {
+        nes.setButtonPressed(player, nesBtn);
+      } else if(!pressed && wasPrev) {
+        nes.setButtonReleased(player, nesBtn);
+      }
+    }
+
+    // Record new button state
+    let newPrev = [];
+    for(let i = 0; i < gp.buttons.length; i++) {
+      newPrev[i] = gp.buttons[i] ? gp.buttons[i].pressed : false;
+    }
+    prevGamepadButtons[playerIdx] = newPrev;
+
+    // Analog stick axis fallback for D-pad
+    let deadzone = mapping.axes.deadzone;
+    let axPrev = prevAxisState[playerIdx];
+    let ax0 = gp.axes[0] || 0;
+    let ax1 = gp.axes[1] || 0;
+
+    let nowLeft = ax0 < -deadzone;
+    let nowRight = ax0 > deadzone;
+    let nowUp = ax1 < -deadzone;
+    let nowDown = ax1 > deadzone;
+
+    if(nowLeft && !axPrev.left) { nes.setButtonPressed(player, nes.INPUT.LEFT); }
+    else if(!nowLeft && axPrev.left) { nes.setButtonReleased(player, nes.INPUT.LEFT); }
+
+    if(nowRight && !axPrev.right) { nes.setButtonPressed(player, nes.INPUT.RIGHT); }
+    else if(!nowRight && axPrev.right) { nes.setButtonReleased(player, nes.INPUT.RIGHT); }
+
+    if(nowUp && !axPrev.up) { nes.setButtonPressed(player, nes.INPUT.UP); }
+    else if(!nowUp && axPrev.up) { nes.setButtonReleased(player, nes.INPUT.UP); }
+
+    if(nowDown && !axPrev.down) { nes.setButtonPressed(player, nes.INPUT.DOWN); }
+    else if(!nowDown && axPrev.down) { nes.setButtonReleased(player, nes.INPUT.DOWN); }
+
+    axPrev.left = nowLeft;
+    axPrev.right = nowRight;
+    axPrev.up = nowUp;
+    axPrev.down = nowDown;
+  }
+}
+
 function runFrame() {
+  pollGamepads();
   nes.runFrame();
   nes.getSamples(audioHandler.sampleBuffer, audioHandler.samplesPerFrame);
   audioHandler.nextBuffer();
@@ -191,6 +310,33 @@ function log(text) {
 
 function el(id) {
   return document.getElementById(id);
+}
+
+window.addEventListener("gamepadconnected", function(e) {
+  let playerIdx = e.gamepad.index;
+  if(playerIdx < 2) {
+    let label = e.gamepad.id.length > 40 ? e.gamepad.id.slice(0, 37) + "..." : e.gamepad.id;
+    log("🎮 P" + (playerIdx + 1) + " gamepad connected: " + label);
+    updateGamepadStatus(playerIdx, label);
+  }
+});
+
+window.addEventListener("gamepaddisconnected", function(e) {
+  let playerIdx = e.gamepad.index;
+  if(playerIdx < 2) {
+    log("🎮 P" + (playerIdx + 1) + " gamepad disconnected");
+    prevGamepadButtons[playerIdx] = [];
+    prevAxisState[playerIdx] = { left: false, right: false, up: false, down: false };
+    updateGamepadStatus(playerIdx, null);
+  }
+});
+
+function updateGamepadStatus(playerIdx, label) {
+  let statusEl = el("gp-status-" + (playerIdx + 1));
+  if(statusEl) {
+    statusEl.textContent = label ? "Connected: " + label : "Disconnected";
+    statusEl.className = "gp-status " + (label ? "gp-connected" : "gp-disconnected");
+  }
 }
 
 window.onkeydown = function(e) {
