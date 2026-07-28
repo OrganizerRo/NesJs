@@ -182,11 +182,7 @@ function startListening(nesBtn) {
 
   // 5-second timeout
   listenTimeout = setTimeout(function() {
-    let timedOutBtn = listeningFor;
-    cancelListening();
-    if(timedOutBtn) {
-      showSaveStatus("Remap timed out — no input received.", true);
-    }
+    cancelListening("Remap timed out — no input received.", true);
   }, LISTEN_TIMEOUT_MS);
 
   // Polling loop
@@ -256,15 +252,15 @@ function cancelListening(msg, isError) {
 // Removes any previous assignment of the same gamepad button index first.
 function assignButton(nesBtn, gamepadBtnIdx) {
   let mapping = currentMapping();
-  // Remove any existing mapping of this gamepad button
-  delete mapping.buttons[gamepadBtnIdx];
+  // Remove any existing mapping of this gamepad button (keys are strings)
+  delete mapping.buttons[String(gamepadBtnIdx)];
   // Remove any previous assignment of this NES button
   Object.keys(mapping.buttons).forEach(function(k) {
     if(mapping.buttons[k] === nesBtn) {
       delete mapping.buttons[k];
     }
   });
-  mapping.buttons[gamepadBtnIdx] = nesBtn;
+  mapping.buttons[String(gamepadBtnIdx)] = nesBtn;
 }
 
 function resetToDefaults() {
