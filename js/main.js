@@ -353,6 +353,7 @@ function el(id) {
   return document.getElementById(id);
 }
 
+// Truncate long gamepad names for display: max 40 chars shown (37 + "...")
 const MAX_GAMEPAD_NAME_LENGTH = 40;
 const GAMEPAD_NAME_TRUNCATE_LENGTH = 37;
 

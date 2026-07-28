@@ -201,7 +201,7 @@ function startListening(nesBtn) {
           listeningGamepadIndex = -1;
           listenRAF = null;
           renderTable();
-          showSaveStatus("Mapped button " + b + " \u2192 " + nesBtn + ". Press Save to persist.", false);
+          showSaveStatus("Mapped button " + b + " \u2192 " + nesBtn + ". Press Save to persist to storage.", false);
           return;
         }
       }
@@ -252,15 +252,16 @@ function cancelListening(msg, isError) {
 // Removes any previous assignment of the same gamepad button index first.
 function assignButton(nesBtn, gamepadBtnIdx) {
   let mapping = currentMapping();
-  // Remove any existing mapping of this gamepad button (keys are strings)
-  delete mapping.buttons[String(gamepadBtnIdx)];
-  // Remove any previous assignment of this NES button
+  let key = String(gamepadBtnIdx);
+  // Remove any previous assignment of this NES button from all keys
   Object.keys(mapping.buttons).forEach(function(k) {
     if(mapping.buttons[k] === nesBtn) {
       delete mapping.buttons[k];
     }
   });
-  mapping.buttons[String(gamepadBtnIdx)] = nesBtn;
+  // Remove any remaining mapping for this gamepad button (different NES button)
+  delete mapping.buttons[key];
+  mapping.buttons[key] = nesBtn;
 }
 
 function resetToDefaults() {
