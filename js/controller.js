@@ -116,7 +116,7 @@ function startListening(nesBtn) {
   // Update UI
   let assignCell = document.getElementById("assign-" + nesBtn);
   if(assignCell) {
-    assignCell.textContent = "Press a button on the gamepad… (5s)";
+    assignCell.textContent = "Press a button on the gamepad... (5s)";
     assignCell.className = "assignment-cell listening";
   }
   let remapBtn = document.getElementById("remap-btn-" + nesBtn);
