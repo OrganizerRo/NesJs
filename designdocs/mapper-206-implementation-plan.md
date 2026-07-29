@@ -5,6 +5,122 @@ Reference implementation: `binji/binjnes` (mapper 206 behavior and bank-select/b
 
 ---
 
+## Refined File-Level Implementation Targets
+
+### 1) Mapper registry/loader
+- `nes/mappers.js`
+- Confirms global `mappers[]` registry pattern.
+- Action: add new file `mappers/mapper206.js` with `mappers[206] = function(...) { ... }`.
+- Also ensure build/load includes it wherever mapper files are imported/loaded (HTML script include in `index.html` and `debug.html`).
+
+### 2) New mapper implementation
+- New file: `mappers/mapper206.js`
+- Use `mappers/mmc3.js` as structural template for:
+  - PRG-RAM behavior ($6000-$7FFF) if cartridge has it (if repo style keeps prgRam regardless, follow repo conventions)
+  - `getRomAdr`, `getChrAdr`, `getMirroringAdr`
+  - `read/write`, `ppuRead/ppuWrite/ppuPeak`, `reset`, `saveVars`
+- Strip/omit IRQ machinery from MMC3 path for mapper 206 unless proven needed for this repo's target ROM set.
+
+Recommended state fields in Mapper206:
+- `name = "Mapper 206"` (or Namcot 108)
+- `version = 1`
+- memory buffers:
+  - `chrRam` (for CHR-RAM carts), `prgRam`, `ppuRam`
+- control registers:
+  - `regSelect`, `prgMode`, `chrMode`, `bankRegs = new Uint8Array(8)` (or JS array)
+- `mirroring` (runtime H/V state)
+- optional derived/precomputed bank slot arrays for performance:
+  - `prgSlots[4]` in 8KB units
+  - `chrSlots[8]` in 1KB units
+
+Address decode in `write(adr, value)` (MMC3-style):
+- `switch (adr & 0x6001):`
+  - `0x0000`: bank select/mode bits
+  - `0x0001`: bank data for selected register
+  - `0x2000`: mirroring control
+  - `0x2001`: ignore/protect stub (no-op comment, consistent with repo style)
+  - Ignore IRQ cases (`0x4000/0x4001/0x6000/0x6001`) for mapper 206 unless needed.
+
+### 3) Save-state hooks
+- Pattern in existing mappers: `this.saveVars = [...]`
+- In `mappers/mapper206.js` include:
+  - `"name", "chrRam", "prgRam", "ppuRam", "regSelect", "prgMode", "chrMode", "bankRegs", "mirroring"`
+  - plus any derived slot arrays only if needed; otherwise recompute on load/reset to avoid redundancy.
+- No global save-state update should be needed if core iterates `mapper.saveVars` dynamically.
+
+### 4) Existing mapper references
+- `mappers/mmc3.js` for behavior and integration template.
+- `mappers/nrom.js`, `mappers/uxrom.js`, `mappers/mmc1.js`, `mappers/cnrom.js`, `mappers/axrom.js` for style patterns.
+
+### 5) Documentation touch
+- Optional: add a short line in README mapper support section if present.
+
+---
+
+## Minimal Mapper 206 Pre-Merge Test Matrix
+
+### A. Register semantics (no ROM dependency; harness-level)
+Use a tiny synthetic cart config with known PRG/CHR sizes.
+
+- Bank select write
+  - Write: `$8000 = 0x00` → expect `regSelect=0`, `prgMode=0`, `chrMode=0`
+  - Write: `$8000 = 0xC7` → expect `regSelect=7`, `prgMode=1`, `chrMode=1`
+- Bank data write applies selected register
+  - Pre: `regSelect=3`, write `$8001=0x2A`
+  - Expect: `bankRegs[3] == 0x2A` (or masked equivalent)
+- Mirroring control
+  - Write `$A000=0` then `$A000=1`
+  - Expect `getMirroringAdr(0x2000..)` matches repo vertical/horizontal mapping conventions.
+
+### B. PRG bank transition checks (8KB slot behavior)
+- PRG mode 0 mapping
+  - Set `prgMode=0`, program bank regs for PRG slots
+  - Read sample addresses: `$8000`, `$A000`, `$C000`, `$E000`
+  - Expect mode-0 layout.
+- PRG mode 1 mapping
+  - Toggle mode via `$8000` bit 6
+  - Re-read same addresses
+  - Expect fixed/switchable regions swapped per mode-1 semantics.
+
+### C. CHR bank transition checks (1KB/2KB logic)
+- CHR mode 0
+  - Program CHR bank regs, peek PPU at:
+    `$0000`, `$0400`, `$0800`, `$0C00`, `$1000`, `$1400`, `$1800`, `$1C00`
+  - Expect `2KB+2KB+1KB*4` organization.
+- CHR mode 1
+  - Toggle mode bit 7 via `$8000`
+  - Re-check same addresses
+  - Expect upper/lower arrangement swapped per mode semantics.
+
+### D. Bounds/mask safety
+- Out-of-range bank writes
+  - Write large values (`0xFF`) into PRG/CHR regs
+  - Expect addresses masked by `h.prgAnd` / `h.chrAnd`, no OOB exceptions.
+
+### E. State persistence
+- Save/load mapper state
+  - Set non-default regs/modes/mirroring
+  - `state = nes.getState(); nes.reset(true); nes.setState(state);`
+  - Expect sampled CPU/PPU mapping results unchanged.
+
+### F. ROM smoke (manual)
+- Boot at least one mapper-206 ROM
+- Verify:
+  - reaches title screen
+  - stable after scene transitions that trigger bank switching
+  - no immediate CHR corruption/freeze
+
+---
+
+## Performance/Cycle-Risk Callouts
+- Recomputing full slot maps on every `$8001` is acceptable initially for correctness.
+- Avoid new-array allocations inside `write()`; mutate fixed arrays.
+- Do not add IRQ/A12 logic from MMC3 unless required.
+
+---
+
+---
+
 ## 1) Goal and Scope
 
 Add accurate support for **iNES Mapper 206** (Namcot 108 family behavior as used by common 206 ROMs), with a staged rollout:
