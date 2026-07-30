@@ -11,12 +11,38 @@ const MAX_SKIP_FRAMES = 4;
 const MAX_FRAME_DEBT_MS = NES_FRAME_MS * (MAX_SKIP_FRAMES + 1);
 let lastFrameTime = 0;
 let frameDebt = 0;
+let isFullscreen = false;
+let fsAspectMode = localStorage.getItem("nesjs_fs_aspect") || "keep";
 
 let c = el("output");
 c.width = 256;
 c.height = 240;
 let ctx = c.getContext("2d");
 let imgData = ctx.createImageData(256, 240);
+
+let screenWrap = el("screen-wrap");
+if (fsAspectMode === "stretch") {
+  screenWrap.classList.add("fs-stretch");
+}
+el("aspect-toggle").textContent = "Aspect: " + (fsAspectMode === "stretch" ? "Stretch" : "Keep");
+
+c.addEventListener("dblclick", function() {
+  if (!document.fullscreenElement) {
+    if (screenWrap.requestFullscreen) {
+      screenWrap.requestFullscreen().catch(function(err) {
+        log("Fullscreen error: " + err.message);
+      });
+    } else if (screenWrap.webkitRequestFullscreen) {
+      screenWrap.webkitRequestFullscreen();
+    }
+  }
+});
+
+c.addEventListener("click", function() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  }
+});
 
 let controlsP1 = {
   arrowright: nes.INPUT.RIGHT,
@@ -200,6 +226,37 @@ el("runframe").onclick = function(e) {
     runFrame();
   }
 }
+
+el("fullscreen").onclick = function() {
+  if (!document.fullscreenElement) {
+    if (screenWrap.requestFullscreen) {
+      screenWrap.requestFullscreen().catch(function(err) {
+        log("Fullscreen error: " + err.message);
+      });
+    } else if (screenWrap.webkitRequestFullscreen) {
+      screenWrap.webkitRequestFullscreen();
+    }
+  } else {
+    document.exitFullscreen();
+  }
+};
+
+el("aspect-toggle").onclick = function() {
+  if (fsAspectMode === "keep") {
+    fsAspectMode = "stretch";
+    screenWrap.classList.add("fs-stretch");
+    el("aspect-toggle").textContent = "Aspect: Stretch";
+  } else {
+    fsAspectMode = "keep";
+    screenWrap.classList.remove("fs-stretch");
+    el("aspect-toggle").textContent = "Aspect: Keep";
+  }
+  try {
+    localStorage.setItem("nesjs_fs_aspect", fsAspectMode);
+  } catch(e) {
+    log("Could not save aspect preference: " + e);
+  }
+};
 
 document.onvisibilitychange = function(e) {
   if(document.hidden) {
@@ -401,6 +458,11 @@ function el(id) {
 // Truncate long gamepad names for display: max 40 chars shown (37 + "...")
 const MAX_GAMEPAD_NAME_LENGTH = 40;
 const GAMEPAD_NAME_TRUNCATE_LENGTH = 37;
+
+document.addEventListener("fullscreenchange", function() {
+  isFullscreen = !!document.fullscreenElement;
+  el("fullscreen").textContent = isFullscreen ? "⛶ Exit Fullscreen" : "⛶ Fullscreen";
+});
 
 window.addEventListener("gamepadconnected", function(e) {
   let playerIdx = e.gamepad.index;
