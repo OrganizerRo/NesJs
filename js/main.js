@@ -6,6 +6,11 @@ let loaded = false;
 let pausedInBg = false;
 let loopId = 0;
 let loadedName = "";
+const NES_FRAME_MS = 1000 / 60.0988;
+const MAX_SKIP_FRAMES = 4;
+const MAX_FRAME_DEBT_MS = NES_FRAME_MS * (MAX_SKIP_FRAMES + 1);
+let lastFrameTime = 0;
+let frameDebt = 0;
 let isFullscreen = false;
 let fsAspectMode = localStorage.getItem("nesjs_fs_aspect") || "keep";
 
@@ -195,6 +200,7 @@ el("rom").onchange = function(e) {
 
 el("pause").onclick = function(e) {
   if(paused && loaded) {
+    resetFrameScheduler();
     loopId = requestAnimationFrame(update);
     audioHandler.start();
     paused = false;
@@ -286,6 +292,7 @@ function loadRom(rom, name) {
     }
     nes.reset(true);
     if(!loaded && !paused) {
+      resetFrameScheduler();
       loopId = requestAnimationFrame(update);
       audioHandler.start();
     }
@@ -309,9 +316,40 @@ function saveBatteryForRom() {
   }
 }
 
-function update() {
-  runFrame();
+function resetFrameScheduler() {
+  lastFrameTime = 0;
+  frameDebt = 0;
+}
+
+function update(timestamp) {
   loopId = requestAnimationFrame(update);
+
+  if(!lastFrameTime) {
+    lastFrameTime = timestamp;
+    frameDebt = 0;
+  }
+
+  let elapsed = timestamp - lastFrameTime;
+  lastFrameTime = timestamp;
+
+  frameDebt += elapsed;
+  if(frameDebt > MAX_FRAME_DEBT_MS) {
+    frameDebt = MAX_FRAME_DEBT_MS;
+  }
+
+  pollGamepads();
+
+  let skippedThisCallback = 0;
+  while(frameDebt >= NES_FRAME_MS * 2 && skippedThisCallback < MAX_SKIP_FRAMES) {
+    runFrameLogic();
+    frameDebt -= NES_FRAME_MS;
+    skippedThisCallback++;
+  }
+
+  if(frameDebt >= NES_FRAME_MS) {
+    runFrame();
+    frameDebt -= NES_FRAME_MS;
+  }
 }
 
 function pollGamepads() {
@@ -392,13 +430,20 @@ function pollGamepads() {
   }
 }
 
-function runFrame() {
-  pollGamepads();
+function runFrameLogic() {
   nes.runFrame();
   nes.getSamples(audioHandler.sampleBuffer, audioHandler.samplesPerFrame);
   audioHandler.nextBuffer();
+}
+
+function renderFrame() {
   nes.getPixels(imgData.data);
   ctx.putImageData(imgData, 0, 0);
+}
+
+function runFrame() {
+  runFrameLogic();
+  renderFrame();
 }
 
 function log(text) {
@@ -491,4 +536,3 @@ window.onkeyup = function(e) {
     }
   }
 }
-
