@@ -10,13 +10,13 @@ function AudioHandler() {
     log("Audio disabled: no Web Audio API support");
     this.hasAudio = false;
   } else {
-    this.actx = new Ac();
+    this.actx = new Ac({ sampleRate: 11025 });
 
-    let samples = this.actx.sampleRate / 60;
+    let samples = Math.floor(this.actx.sampleRate / 60);
     this.sampleBuffer = new Float64Array(samples);
     this.samplesPerFrame = samples;
 
-    log("Audio initialized, sample rate: " + samples * 60);
+    log("Audio initialized, sample rate: " + this.actx.sampleRate);
 
     this.inputBuffer = new Float64Array(4096);
     this.inputBufferPos = 0;

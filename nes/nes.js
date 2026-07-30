@@ -126,8 +126,8 @@ function Nes() {
     // apu returns 29780 or 29781 samples (0 - 1) for a frame
     // we need count values (0 - 1)
     let samples = this.apu.getOutput();
-    let runAdd = (29780 / count);
-    let total = 0;
+    let apuSamples = samples[0]; // actual count this frame (29780 or 29781)
+    let runAdd = (apuSamples / count);
     let inputPos = 0;
     let running = 0;
     for(let i = 0; i < count; i++) {
