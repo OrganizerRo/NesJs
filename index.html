@@ -10,11 +10,15 @@
   <button id="reset">Reset</button>
   <button id="hardreset">Power cycle</button>
   <button id="runframe">Run 1 frame</button>
+  <button id="fullscreen">⛶ Fullscreen</button>
+  <button id="aspect-toggle">Aspect: Keep</button>
   <a href="controller.html"><button>⚙ Controller Settings</button></a><br>
   <span class="gp-indicator">🎮 P1: <span id="gp-status-1" class="gp-status gp-disconnected">Disconnected</span></span>
   &nbsp;&nbsp;
   <span class="gp-indicator">🎮 P2: <span id="gp-status-2" class="gp-status gp-disconnected">Disconnected</span></span><br>
-  <canvas id="output"></canvas>
+  <div id="screen-wrap">
+    <canvas id="output"></canvas>
+  </div>
   <pre id="log"></pre>
   <p>
     NesJs, by angelo_wf. <a href="debug.html">Debugger</a>, <a href="controller.html">Controllers</a>, <a href="nsfplayer.html">NsfJs</a>.<br>
