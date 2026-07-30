@@ -127,10 +127,12 @@ mappers[206] = function(nes, rom, header) {
     if(adr < 0x8000) {
       return this.prgRam[adr & 0x1fff];
     }
-    return this.rom[this.h.base + this.getRomAdr(adr)];
+    const idx = this.h.base + this.getRomAdr(adr);
+    return (idx >= 0 && idx < this.rom.length) ? this.rom[idx] : 0;
   }
 
   this.write = function(adr, value) {
+    value &= 0xff;
     if(adr < 0x6000) {
       return; // no mapper registers
     }
@@ -161,12 +163,17 @@ mappers[206] = function(nes, rom, header) {
     }
   }
 
+  this.readChrRom = function(chrAdr) {
+    const idx = this.h.chrBase + chrAdr;
+    return (idx >= 0 && idx < this.rom.length) ? this.rom[idx] : 0;
+  }
+
   this.ppuPeak = function(adr) {
     if(adr < 0x2000) {
       if(this.h.chrBanks === 0) {
         return this.chrRam[this.getChrAdr(adr)];
       } else {
-        return this.rom[this.h.chrBase + this.getChrAdr(adr)];
+        return this.readChrRom(this.getChrAdr(adr));
       }
     } else {
       return this.ppuRam[this.getMirroringAdr(adr)];
@@ -179,7 +186,7 @@ mappers[206] = function(nes, rom, header) {
       if(this.h.chrBanks === 0) {
         return this.chrRam[this.getChrAdr(adr)];
       } else {
-        return this.rom[this.h.chrBase + this.getChrAdr(adr)];
+        return this.readChrRom(this.getChrAdr(adr));
       }
     } else {
       return this.ppuRam[this.getMirroringAdr(adr)];
