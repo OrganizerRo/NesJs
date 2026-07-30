@@ -1,7 +1,8 @@
-
 function AudioHandler() {
 
   this.hasAudio = true;
+  this.workletReady = Promise.reject(new Error("AudioWorklet not initialized"));
+  this.workletReady.catch(function() {});
   let Ac = window.AudioContext || window.webkitAudioContext;
   this.sampleBuffer = new Float64Array(735);
   this.samplesPerFrame = 735;
@@ -10,7 +11,7 @@ function AudioHandler() {
     log("Audio disabled: no Web Audio API support");
     this.hasAudio = false;
   } else {
-    this.actx = new Ac({ sampleRate: 11025 });
+    this.actx = new Ac({sampleRate: 11025});
 
     let samples = Math.floor(this.actx.sampleRate / 60);
     this.sampleBuffer = new Float64Array(samples);
@@ -23,46 +24,58 @@ function AudioHandler() {
     this.inputReadPos = 0;
 
     this.scriptNode = undefined;
-    this.dummyNode = undefined;
+    this.workletNode = undefined;
   }
 
   this.resume = function() {
     // for Chrome autoplay policy
     if(this.hasAudio) {
-      this.actx.onstatechange = function() { console.log(this.actx.state) };
+      this.actx.onstatechange = () => { console.log(this.actx.state); };
       this.actx.resume();
+      if(this.actx.audioWorklet) {
+        this.workletReady = this.actx.audioWorklet.addModule('js/audio-worklet-processor.js');
+      } else {
+        this.workletReady = Promise.reject(new Error("AudioWorklet not supported"));
+        this.workletReady.catch(function() {});
+      }
     }
   }
 
-  this.start = function() {
+  this.start = async function() {
     if(this.hasAudio) {
-
-      this.dummyNode = this.actx.createBufferSource();
-      this.dummyNode.buffer = this.actx.createBuffer(1, 44100, 44100);
-      this.dummyNode.loop = true;
-
-      this.scriptNode = this.actx.createScriptProcessor(2048, 1, 1);
-      let that = this;
-      this.scriptNode.onaudioprocess = function(e) {
-        that.process(e);
+      try {
+        await this.workletReady;
+        if(this.scriptNode) {
+          this.scriptNode.disconnect();
+          this.scriptNode.onaudioprocess = null;
+          this.scriptNode = undefined;
+        }
+        if(!this.workletNode) {
+          this.workletNode = new AudioWorkletNode(this.actx, "nes-audio-processor");
+          this.workletNode.connect(this.actx.destination);
+        }
+      } catch(e) {
+        if(!this.scriptNode) {
+          this.scriptNode = this.actx.createScriptProcessor(2048, 1, 1);
+          let that = this;
+          this.scriptNode.onaudioprocess = function(e) {
+            that.process(e);
+          }
+          this.scriptNode.connect(this.actx.destination);
+        }
       }
-
-      this.dummyNode.connect(this.scriptNode);
-      this.scriptNode.connect(this.actx.destination);
-      this.dummyNode.start();
-
     }
   }
 
   this.stop = function() {
     if(this.hasAudio) {
-      if(this.dummyNode) {
-        this.dummyNode.stop();
-        this.dummyNode.disconnect();
-        this.dummyNode = undefined;
+      if(this.workletNode) {
+        this.workletNode.disconnect();
+        this.workletNode = undefined;
       }
       if(this.scriptNode) {
         this.scriptNode.disconnect();
+        this.scriptNode.onaudioprocess = null;
         this.scriptNode = undefined;
       }
       this.inputBufferPos = 0;
@@ -89,9 +102,14 @@ function AudioHandler() {
 
   this.nextBuffer = function() {
     if(this.hasAudio) {
-      for(let i = 0; i < this.samplesPerFrame; i++) {
-        let val = this.sampleBuffer[i];
-        this.inputBuffer[(this.inputBufferPos++) & 0xfff] = val;
+      if(this.workletNode) {
+        let samples = new Float32Array(this.sampleBuffer);
+        this.workletNode.port.postMessage(samples, [samples.buffer]);
+      } else {
+        for(let i = 0; i < this.samplesPerFrame; i++) {
+          let val = this.sampleBuffer[i];
+          this.inputBuffer[(this.inputBufferPos++) & 0xfff] = val;
+        }
       }
     }
   }
