@@ -1,5 +1,6 @@
 (function(window) {
   const COOKIE_KEY = "nesjs_touch_controller";
+  const STORAGE_KEY = COOKIE_KEY;
   const BUTTON_ORDER = ["UP", "DOWN", "LEFT", "RIGHT", "SELECT", "EXIT", "START", "B", "A"];
   const BUTTON_NAME_MAP = {
     up: "UP",
@@ -102,20 +103,44 @@
   }
 
   function loadTouchControllerConfig() {
-    let rawCookie = getCookie(COOKIE_KEY);
-    if(!rawCookie) {
-      return clone(DEFAULT_CONFIG);
-    }
+    let rawStored = "";
     try {
-      return sanitizeTouchControllerConfig(JSON.parse(rawCookie));
+      if(window.localStorage) {
+        rawStored = window.localStorage.getItem(STORAGE_KEY) || "";
+      }
     } catch(e) {
-      console.warn("[touch-controller] Failed to parse cookie, using defaults.", e);
-      return clone(DEFAULT_CONFIG);
+      rawStored = "";
     }
+
+    if(rawStored) {
+      try {
+        return sanitizeTouchControllerConfig(JSON.parse(rawStored));
+      } catch(e) {
+        console.warn("[touch-controller] Failed to parse local storage config, checking cookie.", e);
+      }
+    }
+
+    let rawCookie = getCookie(COOKIE_KEY);
+    if(rawCookie) {
+      try {
+        return sanitizeTouchControllerConfig(JSON.parse(rawCookie));
+      } catch(e) {
+        console.warn("[touch-controller] Failed to parse cookie config, using defaults.", e);
+      }
+    }
+
+    return clone(DEFAULT_CONFIG);
   }
 
   function saveTouchControllerConfig(config) {
     let sanitized = sanitizeTouchControllerConfig(config);
+    try {
+      if(window.localStorage) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+      }
+    } catch(e) {
+      console.warn("[touch-controller] Failed to save to local storage.", e);
+    }
     document.cookie = COOKIE_KEY + "=" + encodeURIComponent(JSON.stringify(sanitized)) +
       "; path=/; max-age=" + (60 * 60 * 24 * 365 * 5) + "; SameSite=Lax";
     return sanitized;

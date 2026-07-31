@@ -402,7 +402,7 @@ function resetTouchConfig() {
 function saveTouchConfig() {
   touchConfig = touchControllerApi.save(collectTouchConfigFromForm());
   renderTouchConfig();
-  showTouchStatus("✔ Touch layout saved to cookies!", false);
+  showTouchStatus("✔ Touch layout saved!", false);
 }
 
 function exportTouchConfig() {
@@ -421,7 +421,7 @@ function importTouchConfig() {
     touchConfig = touchControllerApi.save(touchControllerApi.parseImported(raw));
     renderTouchConfig();
     showTouchEiStatus("✔ Imported successfully!", false);
-    showTouchStatus("✔ Touch layout saved to cookies!", false);
+    showTouchStatus("✔ Touch layout saved!", false);
   } catch(e) {
     showTouchEiStatus("✘ Invalid JSON: " + e.message, true);
   }
