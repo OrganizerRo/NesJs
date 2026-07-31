@@ -162,10 +162,19 @@ function testMainIncludesPointerAndTouchSupport() {
   assert(source.includes("function handleTouchControllerPointer"), "Missing pointer handler");
 }
 
+function testMainIncludesTouchAssignmentPerfGuards() {
+  const source = fs.readFileSync(mainJsPath, "utf8");
+  assert(source.includes("function buildTouchControllerHitTargets"), "Missing touch hit-target builder");
+  assert(source.includes("function areTouchControllerAssignmentsEqual"), "Missing assignment equality guard");
+  assert(source.includes("function getTouchControllerButtonAt(clientX, clientY, bounds, hitTargets)"), "Missing optimized hit-test signature");
+  assert(source.includes("areTouchControllerAssignmentsEqual(touchControllerAssignments, nextAssignments)"), "Missing no-op assignment guard usage");
+}
+
 testSaveAndLoadFromLocalStorage();
 testLoadFallsBackToCookieWhenStorageUnavailable();
 testMalformedStorageFallsBackToCookie();
 testSanitizationAndAliases();
 testMainIncludesPointerAndTouchSupport();
+testMainIncludesTouchAssignmentPerfGuards();
 
 console.log("touch-controller-regression.test.js: all tests passed");

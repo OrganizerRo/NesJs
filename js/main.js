@@ -554,13 +554,18 @@ function handleTouchControllerTouches(e) {
     e.preventDefault();
   }
 
+  let bounds = touchControllerArea.getBoundingClientRect();
+  let hitTargets = buildTouchControllerHitTargets(bounds);
   let nextAssignments = {};
   for(let i = 0; i < e.touches.length; i++) {
     let touch = e.touches[i];
-    let buttonName = getTouchControllerButtonAt(touch.clientX, touch.clientY);
+    let buttonName = getTouchControllerButtonAt(touch.clientX, touch.clientY, bounds, hitTargets);
     if(buttonName) {
       nextAssignments[touch.identifier] = buttonName;
     }
+  }
+  if(areTouchControllerAssignmentsEqual(touchControllerAssignments, nextAssignments)) {
+    return;
   }
   syncTouchControllerAssignments(nextAssignments);
 }
@@ -579,7 +584,9 @@ function handleTouchControllerPointer(e) {
   if(e.type === "pointerup" || e.type === "pointercancel" || e.type === "pointerleave") {
     delete nextAssignments[pointerId];
   } else {
-    let buttonName = getTouchControllerButtonAt(e.clientX, e.clientY);
+    let bounds = touchControllerArea.getBoundingClientRect();
+    let hitTargets = buildTouchControllerHitTargets(bounds);
+    let buttonName = getTouchControllerButtonAt(e.clientX, e.clientY, bounds, hitTargets);
     if(buttonName) {
       if(e.type === "pointerdown" && touchControllerArea.setPointerCapture) {
         touchControllerArea.setPointerCapture(e.pointerId);
@@ -589,36 +596,67 @@ function handleTouchControllerPointer(e) {
       delete nextAssignments[pointerId];
     }
   }
+  if(areTouchControllerAssignmentsEqual(touchControllerAssignments, nextAssignments)) {
+    return;
+  }
   syncTouchControllerAssignments(nextAssignments);
 }
 
-function getTouchControllerButtonAt(clientX, clientY) {
-  let bounds = touchControllerArea.getBoundingClientRect();
+function buildTouchControllerHitTargets(bounds) {
+  let targets = [];
+  for(let buttonName in touchControllerButtons) {
+    let buttonConfig = touchControllerConfig.buttons[buttonName];
+    if(!buttonConfig) {
+      continue;
+    }
+    targets.push({
+      buttonName: buttonName,
+      centerX: bounds.left + (bounds.width * (buttonConfig.x / 100)),
+      centerY: bounds.top + (bounds.height * (buttonConfig.y / 100))
+    });
+  }
+  return targets;
+}
+
+function getTouchControllerButtonAt(clientX, clientY, bounds, hitTargets) {
   if(clientX < bounds.left || clientX > bounds.right || clientY < bounds.top || clientY > bounds.bottom) {
     return null;
   }
 
   let nearestButtonName = null;
   let nearestDistanceSq = Infinity;
-  for(let buttonName in touchControllerButtons) {
-    let buttonConfig = touchControllerConfig.buttons[buttonName];
-    if(!buttonConfig) {
-      continue;
-    }
-    let centerX = bounds.left + (bounds.width * (buttonConfig.x / 100));
-    let centerY = bounds.top + (bounds.height * (buttonConfig.y / 100));
-    let dx = clientX - centerX;
-    let dy = clientY - centerY;
+  for(let i = 0; i < hitTargets.length; i++) {
+    let target = hitTargets[i];
+    let dx = clientX - target.centerX;
+    let dy = clientY - target.centerY;
     let distanceSq = (dx * dx) + (dy * dy);
     if(distanceSq < nearestDistanceSq) {
       nearestDistanceSq = distanceSq;
-      nearestButtonName = buttonName;
+      nearestButtonName = target.buttonName;
     }
   }
   return nearestButtonName;
 }
 
+function areTouchControllerAssignmentsEqual(a, b) {
+  let aKeys = Object.keys(a);
+  let bKeys = Object.keys(b);
+  if(aKeys.length !== bKeys.length) {
+    return false;
+  }
+  for(let i = 0; i < aKeys.length; i++) {
+    let key = aKeys[i];
+    if(a[key] !== b[key]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function syncTouchControllerAssignments(nextAssignments) {
+  if(areTouchControllerAssignmentsEqual(touchControllerAssignments, nextAssignments)) {
+    return;
+  }
   let prevCounts = countTouchControllerAssignments(touchControllerAssignments);
   let nextCounts = countTouchControllerAssignments(nextAssignments);
 
