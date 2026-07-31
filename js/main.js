@@ -35,9 +35,6 @@ if (fsAspectMode === "stretch") {
   screenWrap.classList.add("fs-stretch");
 }
 el("aspect-toggle").textContent = "Aspect: " + (fsAspectMode === "stretch" ? "Stretch" : "Keep");
-buildTouchController();
-bindTouchControllerEvents();
-applyTouchControllerConfig();
 
 function isAnyFullscreenActive() {
   return !!(document.fullscreenElement || document.webkitFullscreenElement);
@@ -91,6 +88,10 @@ const NES_BUTTON_NAMES = new Set(["A", "B", "SELECT", "START", "UP", "DOWN", "LE
 const TOUCH_CONTROLLER_NES_BUTTONS = TOUCH_CONTROLLER_BUTTONS.filter(function(buttonName) {
   return NES_BUTTON_NAMES.has(buttonName);
 });
+buildTouchController();
+bindTouchControllerEvents();
+applyTouchControllerConfig();
+
 const GAMEPAD_MAPPINGS_STORAGE_KEY = "nesjs_gamepad_mappings";
 const DEFAULT_GAMEPAD_MAPPINGS = [
   {
