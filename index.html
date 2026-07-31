@@ -12,12 +12,16 @@
   <button id="runframe">Run 1 frame</button>
   <button id="fullscreen">⛶ Fullscreen</button>
   <button id="aspect-toggle">Aspect: Keep</button>
+  <label class="touch-toggle"><input id="touch-controller-toggle" type="checkbox"> Show on-screen touch controller</label>
   <a href="controller.html"><button>⚙ Controller Settings</button></a><br>
   <span class="gp-indicator">🎮 P1: <span id="gp-status-1" class="gp-status gp-disconnected">Disconnected</span></span>
   &nbsp;&nbsp;
   <span class="gp-indicator">🎮 P2: <span id="gp-status-2" class="gp-status gp-disconnected">Disconnected</span></span><br>
   <div id="screen-wrap">
-    <canvas id="output"></canvas>
+    <div id="game-area">
+      <canvas id="output"></canvas>
+    </div>
+    <div id="touch-controller-area" hidden></div>
   </div>
   <pre id="log"></pre>
   <p>
@@ -43,6 +47,7 @@
   <script src="nes/nes.js"></script>
 
   <script src="js/audio.js"></script>
+  <script src="js/touchcontroller-config.js"></script>
   <script src="js/main.js"></script>
 
 </body>

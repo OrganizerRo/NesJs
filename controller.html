@@ -44,6 +44,46 @@
     <div class="ei-status" id="ei-status"></div>
   </div>
 
+  <section class="touch-layout-section">
+    <h2>Touch Controller Layout</h2>
+    <p class="section-copy">Adjust the on-screen controller layout stored in cookies for touch devices.</p>
+
+    <div class="touch-general">
+      <label><input id="touch-enabled" type="checkbox"> Enable on-screen controller by default</label>
+      <label>Windowed controller area (px) <input id="touch-window-height" type="number" min="80" max="320" step="1"></label>
+      <label>Fullscreen controller area (%) <input id="touch-fullscreen-height" type="number" min="10" max="50" step="1"></label>
+    </div>
+
+    <table class="mapping-table">
+      <thead>
+        <tr>
+          <th>NES Button</th>
+          <th>X %</th>
+          <th>Y %</th>
+          <th>Size px</th>
+        </tr>
+      </thead>
+      <tbody id="touch-config-body"></tbody>
+    </table>
+
+    <div class="actions">
+      <button id="btn-touch-reset">Reset Touch Layout</button>
+      <button id="btn-touch-save">💾 Save Touch Layout</button>
+      <span class="status-msg" id="touch-save-status"></span>
+    </div>
+
+    <div class="export-import">
+      <h3>Export / Import Touch Layout</h3>
+      <textarea id="touch-textarea" placeholder="Touch controller JSON will appear here..."></textarea>
+      <div class="ei-buttons">
+        <button id="btn-touch-export">Export JSON</button>
+        <button id="btn-touch-import">Import</button>
+      </div>
+      <div class="ei-status" id="touch-ei-status"></div>
+    </div>
+  </section>
+
+  <script src="js/touchcontroller-config.js"></script>
   <script src="js/controller.js"></script>
 </body>
 </html>
