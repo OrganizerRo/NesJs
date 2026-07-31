@@ -15,6 +15,8 @@ Most games however seem to run fine (except the known broken games listed below)
 
 Standard controllers 1 and 2 are emulated.
 
+There is also an optional on-screen touch controller for multi-touch devices. Its layout can be enabled from the main page, configured from `controller.html`, and exported/imported as JSON. Touch-controller layout settings are stored in cookies.
+
 Supports mapper 0 (NROM), 1 (MMC1), 2 (UxROM), 3 (CNROM), 4 (MMC3) and 7 (AxROM). The MMC3's IRQ emulation is not really accurate though.
 
 There is support for both save states and battery saves.

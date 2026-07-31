@@ -221,6 +221,36 @@ button.remap-btn.cancel:hover {
   color: #c0392b;
 }
 
+.touch-layout-section {
+  margin-top: 32px;
+}
+
+.section-copy {
+  color: #555;
+}
+
+.touch-general {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 12px 0 16px;
+}
+
+.touch-general label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.touch-general input[type="number"] {
+  width: 80px;
+}
+
+#touch-config-body input[type="number"] {
+  width: 72px;
+}
+
 nav {
   margin-bottom: 16px;
   font-size: 0.9em;

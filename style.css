@@ -4,6 +4,14 @@ body {
   background-color: #efefef;
 }
 
+.touch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 4px;
+  font-size: 0.95em;
+}
+
 pre {
   margin: 0;
   padding: 0;
@@ -26,21 +34,90 @@ pre {
   height: 480px;
   image-rendering: crisp-edges;
   image-rendering: pixelated;
+  display: block;
 }
 
 #screen-wrap {
-  display: inline-block;
+  --touch-controller-window-height: 180px;
+  --touch-controller-fullscreen-height: 30vh;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#game-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#touch-controller-area {
+  position: relative;
+  width: 512px;
+  height: var(--touch-controller-window-height);
+  background: #111;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#screen-wrap.touch-controller-enabled #touch-controller-area {
+  display: block;
+}
+
+.touch-button {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: sans-serif;
+  font-weight: bold;
+  color: #fff;
+  background: rgba(90, 90, 90, 0.88);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  box-sizing: border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.touch-button.touch-round {
+  border-radius: 999px;
+}
+
+.touch-button.touch-pill {
+  border-radius: 999px;
+}
+
+.touch-button.pressed {
+  background: rgba(200, 70, 70, 0.94);
+}
+
+.touch-button.touch-dir {
+  background: rgba(70, 70, 70, 0.92);
 }
 
 /* ── Fullscreen: keep-aspect-ratio (default) ─────────────────────────── */
 #screen-wrap:fullscreen {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   height: 100%;
   background: #000;
   cursor: none;
+}
+
+#screen-wrap:fullscreen #game-area {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+#screen-wrap.touch-controller-enabled:fullscreen #touch-controller-area {
+  width: 100%;
+  height: var(--touch-controller-fullscreen-height);
 }
 
 #screen-wrap:fullscreen #output {
@@ -61,12 +138,24 @@ pre {
 /* ── WebKit prefix variants (Safari) ─────────────────────────────────── */
 #screen-wrap:-webkit-full-screen {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   height: 100%;
   background: #000;
   cursor: none;
+}
+
+#screen-wrap:-webkit-full-screen #game-area {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+#screen-wrap.touch-controller-enabled:-webkit-full-screen #touch-controller-area {
+  width: 100%;
+  height: var(--touch-controller-fullscreen-height);
 }
 
 #screen-wrap:-webkit-full-screen #output {

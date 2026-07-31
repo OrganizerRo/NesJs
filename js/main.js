@@ -21,10 +21,23 @@ let ctx = c.getContext("2d");
 let imgData = ctx.createImageData(256, 240);
 
 let screenWrap = el("screen-wrap");
+let touchControllerArea = el("touch-controller-area");
+let touchControllerToggle = el("touch-controller-toggle");
+const TOUCH_CONTROLLER_BUTTONS = window.TouchControllerConfig
+  ? window.TouchControllerConfig.BUTTON_ORDER.slice()
+  : ["UP", "DOWN", "LEFT", "RIGHT", "SELECT", "START", "B", "A"];
+let touchControllerConfig = window.TouchControllerConfig
+  ? window.TouchControllerConfig.load()
+  : { enabled: false, windowedAreaHeight: 180, fullscreenAreaPercent: 30, buttons: {} };
+let touchControllerAssignments = {};
+let touchControllerButtons = {};
 if (fsAspectMode === "stretch") {
   screenWrap.classList.add("fs-stretch");
 }
 el("aspect-toggle").textContent = "Aspect: " + (fsAspectMode === "stretch" ? "Stretch" : "Keep");
+buildTouchController();
+bindTouchControllerEvents();
+applyTouchControllerConfig();
 
 c.addEventListener("dblclick", function() {
   if (!document.fullscreenElement) {
@@ -258,6 +271,17 @@ el("aspect-toggle").onclick = function() {
   }
 };
 
+if(touchControllerToggle) {
+  touchControllerToggle.onchange = function() {
+    touchControllerConfig.enabled = !!touchControllerToggle.checked;
+    if(window.TouchControllerConfig) {
+      touchControllerConfig = window.TouchControllerConfig.save(touchControllerConfig);
+    }
+    applyTouchControllerConfig();
+    log("Touch controller " + (touchControllerConfig.enabled ? "enabled" : "disabled"));
+  };
+}
+
 document.onvisibilitychange = function(e) {
   if(document.hidden) {
     pausedInBg = false;
@@ -268,6 +292,7 @@ document.onvisibilitychange = function(e) {
     // Release all gamepad buttons to prevent stuck inputs when tab is hidden
     releaseAllButtonsForPlayer(0);
     releaseAllButtonsForPlayer(1);
+    releaseTouchControllerButtons();
   } else {
     if(pausedInBg && loaded) {
       el("pause").click();
@@ -277,6 +302,7 @@ document.onvisibilitychange = function(e) {
 }
 
 window.onpagehide = function(e) {
+  releaseTouchControllerButtons();
   saveBatteryForRom();
 }
 
@@ -428,6 +454,149 @@ function pollGamepads() {
     axPrev.up = nowUp;
     axPrev.down = nowDown;
   }
+}
+
+function buildTouchController() {
+  if(!touchControllerArea) {
+    return;
+  }
+
+  touchControllerArea.innerHTML = "";
+  TOUCH_CONTROLLER_BUTTONS.forEach(function(buttonName) {
+    let button = document.createElement("div");
+    let label = buttonName;
+    if(buttonName === "SELECT") {
+      label = "SEL";
+    }
+    button.className = "touch-button";
+    button.setAttribute("data-button", buttonName);
+    button.textContent = label;
+    touchControllerArea.appendChild(button);
+    touchControllerButtons[buttonName] = button;
+  });
+}
+
+function applyTouchControllerConfig() {
+  if(!screenWrap || !touchControllerArea) {
+    return;
+  }
+
+  screenWrap.style.setProperty("--touch-controller-window-height", touchControllerConfig.windowedAreaHeight + "px");
+  screenWrap.style.setProperty("--touch-controller-fullscreen-height", touchControllerConfig.fullscreenAreaPercent + "vh");
+  screenWrap.classList.toggle("touch-controller-enabled", !!touchControllerConfig.enabled);
+  touchControllerArea.hidden = !touchControllerConfig.enabled;
+  touchControllerArea.setAttribute("aria-hidden", touchControllerConfig.enabled ? "false" : "true");
+  if(touchControllerToggle) {
+    touchControllerToggle.checked = !!touchControllerConfig.enabled;
+  }
+  renderTouchControllerButtons();
+  if(!touchControllerConfig.enabled) {
+    releaseTouchControllerButtons();
+  }
+}
+
+function renderTouchControllerButtons() {
+  for(let buttonName in touchControllerButtons) {
+    let button = touchControllerButtons[buttonName];
+    let buttonConfig = touchControllerConfig.buttons[buttonName];
+    if(!buttonConfig) {
+      continue;
+    }
+
+    let isPill = buttonName === "SELECT" || buttonName === "START";
+    let width = isPill ? Math.round(buttonConfig.size * 1.7) : buttonConfig.size;
+    let height = isPill ? Math.max(24, Math.round(buttonConfig.size * 0.68)) : buttonConfig.size;
+
+    button.style.left = buttonConfig.x + "%";
+    button.style.top = buttonConfig.y + "%";
+    button.style.width = width + "px";
+    button.style.height = height + "px";
+    button.style.fontSize = Math.max(12, Math.round(height * 0.28)) + "px";
+    button.className = "touch-button " +
+      (isPill ? "touch-pill" : "touch-round") +
+      (buttonName === "UP" || buttonName === "DOWN" || buttonName === "LEFT" || buttonName === "RIGHT" ? " touch-dir" : "");
+  }
+}
+
+function bindTouchControllerEvents() {
+  if(!touchControllerArea) {
+    return;
+  }
+
+  touchControllerArea.addEventListener("touchstart", handleTouchControllerTouches, false);
+  touchControllerArea.addEventListener("touchmove", handleTouchControllerTouches, false);
+  touchControllerArea.addEventListener("touchend", handleTouchControllerTouches, false);
+  touchControllerArea.addEventListener("touchcancel", handleTouchControllerTouches, false);
+}
+
+function handleTouchControllerTouches(e) {
+  if(!touchControllerConfig.enabled) {
+    return;
+  }
+
+  if(e.cancelable) {
+    e.preventDefault();
+  }
+
+  let nextAssignments = {};
+  for(let i = 0; i < e.touches.length; i++) {
+    let touch = e.touches[i];
+    let buttonName = getTouchControllerButtonAt(touch.clientX, touch.clientY);
+    if(buttonName) {
+      nextAssignments[touch.identifier] = buttonName;
+    }
+  }
+  syncTouchControllerAssignments(nextAssignments);
+}
+
+function getTouchControllerButtonAt(clientX, clientY) {
+  let target = document.elementFromPoint(clientX, clientY);
+  while(target) {
+    if(target.getAttribute && target.getAttribute("data-button")) {
+      return target.getAttribute("data-button");
+    }
+    target = target.parentNode;
+  }
+  return null;
+}
+
+function syncTouchControllerAssignments(nextAssignments) {
+  let prevCounts = countTouchControllerAssignments(touchControllerAssignments);
+  let nextCounts = countTouchControllerAssignments(nextAssignments);
+
+  TOUCH_CONTROLLER_BUTTONS.forEach(function(buttonName) {
+    let hadButton = !!prevCounts[buttonName];
+    let hasButton = !!nextCounts[buttonName];
+    if(!hadButton && hasButton) {
+      nes.setButtonPressed(1, nes.INPUT[buttonName]);
+    } else if(hadButton && !hasButton) {
+      nes.setButtonReleased(1, nes.INPUT[buttonName]);
+    }
+    if(touchControllerButtons[buttonName]) {
+      touchControllerButtons[buttonName].classList.toggle("pressed", hasButton);
+    }
+  });
+
+  touchControllerAssignments = nextAssignments;
+}
+
+function countTouchControllerAssignments(assignments) {
+  let counts = {};
+  for(let touchId in assignments) {
+    let buttonName = assignments[touchId];
+    counts[buttonName] = (counts[buttonName] || 0) + 1;
+  }
+  return counts;
+}
+
+function releaseTouchControllerButtons() {
+  touchControllerAssignments = {};
+  TOUCH_CONTROLLER_BUTTONS.forEach(function(buttonName) {
+    nes.setButtonReleased(1, nes.INPUT[buttonName]);
+    if(touchControllerButtons[buttonName]) {
+      touchControllerButtons[buttonName].classList.remove("pressed");
+    }
+  });
 }
 
 function runFrameLogic() {

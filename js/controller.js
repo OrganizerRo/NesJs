@@ -340,3 +340,102 @@ document.getElementById("btn-save").addEventListener("click", saveMappings);
 document.getElementById("btn-export-json").addEventListener("click", exportJSON);
 document.getElementById("btn-export-js").addEventListener("click", exportJS);
 document.getElementById("btn-import").addEventListener("click", importMapping);
+
+const touchControllerApi = window.TouchControllerConfig;
+let touchConfig = touchControllerApi ? touchControllerApi.load() : null;
+
+if(touchControllerApi && touchConfig) {
+  renderTouchConfig();
+
+  document.getElementById("btn-touch-reset").addEventListener("click", resetTouchConfig);
+  document.getElementById("btn-touch-save").addEventListener("click", saveTouchConfig);
+  document.getElementById("btn-touch-export").addEventListener("click", exportTouchConfig);
+  document.getElementById("btn-touch-import").addEventListener("click", importTouchConfig);
+}
+
+function renderTouchConfig() {
+  document.getElementById("touch-enabled").checked = !!touchConfig.enabled;
+  document.getElementById("touch-window-height").value = touchConfig.windowedAreaHeight;
+  document.getElementById("touch-fullscreen-height").value = touchConfig.fullscreenAreaPercent;
+
+  let tbody = document.getElementById("touch-config-body");
+  tbody.innerHTML = "";
+
+  touchControllerApi.BUTTON_ORDER.forEach(function(buttonName) {
+    let buttonConfig = touchConfig.buttons[buttonName];
+    let tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td><span class=\"nes-btn-label\">" + buttonName + "</span></td>" +
+      "<td><input type=\"number\" min=\"0\" max=\"100\" step=\"1\" data-touch-button=\"" + buttonName + "\" data-touch-field=\"x\" value=\"" + buttonConfig.x + "\"></td>" +
+      "<td><input type=\"number\" min=\"0\" max=\"100\" step=\"1\" data-touch-button=\"" + buttonName + "\" data-touch-field=\"y\" value=\"" + buttonConfig.y + "\"></td>" +
+      "<td><input type=\"number\" min=\"28\" max=\"120\" step=\"1\" data-touch-button=\"" + buttonName + "\" data-touch-field=\"size\" value=\"" + buttonConfig.size + "\"></td>";
+    tbody.appendChild(tr);
+  });
+}
+
+function collectTouchConfigFromForm() {
+  let nextConfig = touchControllerApi.cloneDefaults();
+  nextConfig.enabled = document.getElementById("touch-enabled").checked;
+  nextConfig.windowedAreaHeight = document.getElementById("touch-window-height").value;
+  nextConfig.fullscreenAreaPercent = document.getElementById("touch-fullscreen-height").value;
+
+  let inputs = document.querySelectorAll("#touch-config-body input[data-touch-button]");
+  for(let i = 0; i < inputs.length; i++) {
+    let input = inputs[i];
+    let buttonName = input.getAttribute("data-touch-button");
+    let field = input.getAttribute("data-touch-field");
+    if(!nextConfig.buttons[buttonName]) {
+      nextConfig.buttons[buttonName] = {};
+    }
+    nextConfig.buttons[buttonName][field] = input.value;
+  }
+
+  return touchControllerApi.sanitize(nextConfig);
+}
+
+function resetTouchConfig() {
+  touchConfig = touchControllerApi.cloneDefaults();
+  renderTouchConfig();
+  showTouchStatus("Reset touch layout. Press Save Touch Layout to persist.", false);
+}
+
+function saveTouchConfig() {
+  touchConfig = touchControllerApi.save(collectTouchConfigFromForm());
+  renderTouchConfig();
+  showTouchStatus("✔ Touch layout saved to cookies!", false);
+}
+
+function exportTouchConfig() {
+  document.getElementById("touch-textarea").value = JSON.stringify(collectTouchConfigFromForm(), null, 2);
+  showTouchEiStatus("", false);
+}
+
+function importTouchConfig() {
+  let raw = document.getElementById("touch-textarea").value.trim();
+  if(!raw) {
+    showTouchEiStatus("✘ Textarea is empty.", true);
+    return;
+  }
+
+  try {
+    touchConfig = touchControllerApi.save(touchControllerApi.parseImported(raw));
+    renderTouchConfig();
+    showTouchEiStatus("✔ Imported successfully!", false);
+    showTouchStatus("✔ Touch layout saved to cookies!", false);
+  } catch(e) {
+    showTouchEiStatus("✘ Invalid JSON: " + e.message, true);
+  }
+}
+
+function showTouchStatus(msg, isError) {
+  let statusEl = document.getElementById("touch-save-status");
+  statusEl.textContent = msg;
+  statusEl.className = "status-msg " + (isError ? "err" : "ok");
+  setTimeout(function() { statusEl.textContent = ""; statusEl.className = "status-msg"; }, STATUS_MESSAGE_DURATION_MS);
+}
+
+function showTouchEiStatus(msg, isError) {
+  let statusEl = document.getElementById("touch-ei-status");
+  statusEl.textContent = msg;
+  statusEl.className = "ei-status " + (isError ? "err" : "ok");
+}
