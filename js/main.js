@@ -25,7 +25,7 @@ let touchControllerArea = el("touch-controller-area");
 let touchControllerToggle = el("touch-controller-toggle");
 const TOUCH_CONTROLLER_BUTTONS = window.TouchControllerConfig
   ? window.TouchControllerConfig.BUTTON_ORDER.slice()
-  : ["UP", "DOWN", "LEFT", "RIGHT", "SELECT", "START", "B", "A"];
+  : ["UP", "DOWN", "LEFT", "RIGHT", "SELECT", "EXIT", "START", "B", "A"];
 let touchControllerConfig = window.TouchControllerConfig
   ? window.TouchControllerConfig.load()
   : { enabled: false, windowedAreaHeight: 180, fullscreenAreaPercent: 30, buttons: {} };
@@ -39,6 +39,20 @@ buildTouchController();
 bindTouchControllerEvents();
 applyTouchControllerConfig();
 
+function isAnyFullscreenActive() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function exitFullscreenMode() {
+  if(document.exitFullscreen) {
+    return document.exitFullscreen();
+  }
+  if(document.webkitExitFullscreen) {
+    document.webkitExitFullscreen();
+  }
+  return null;
+}
+
 c.addEventListener("dblclick", function() {
   if (!document.fullscreenElement) {
     if (screenWrap.requestFullscreen) {
@@ -48,12 +62,6 @@ c.addEventListener("dblclick", function() {
     } else if (screenWrap.webkitRequestFullscreen) {
       screenWrap.webkitRequestFullscreen();
     }
-  }
-});
-
-c.addEventListener("click", function() {
-  if (document.fullscreenElement) {
-    document.exitFullscreen();
   }
 });
 
@@ -80,6 +88,9 @@ let controlsP2 = {
 
 // ── Gamepad mapping constants ────────────────────────────────────────────────
 const NES_BUTTON_NAMES = new Set(["A", "B", "SELECT", "START", "UP", "DOWN", "LEFT", "RIGHT"]);
+const TOUCH_CONTROLLER_NES_BUTTONS = TOUCH_CONTROLLER_BUTTONS.filter(function(buttonName) {
+  return NES_BUTTON_NAMES.has(buttonName);
+});
 const GAMEPAD_MAPPINGS_STORAGE_KEY = "nesjs_gamepad_mappings";
 const DEFAULT_GAMEPAD_MAPPINGS = [
   {
@@ -241,7 +252,7 @@ el("runframe").onclick = function(e) {
 }
 
 el("fullscreen").onclick = function() {
-  if (!document.fullscreenElement) {
+  if (!isAnyFullscreenActive()) {
     if (screenWrap.requestFullscreen) {
       screenWrap.requestFullscreen().catch(function(err) {
         log("Fullscreen error: " + err.message);
@@ -250,7 +261,7 @@ el("fullscreen").onclick = function() {
       screenWrap.webkitRequestFullscreen();
     }
   } else {
-    document.exitFullscreen();
+    exitFullscreenMode();
   }
 };
 
@@ -467,6 +478,8 @@ function buildTouchController() {
     let label = buttonName;
     if(buttonName === "SELECT") {
       label = "SEL";
+    } else if(buttonName === "EXIT") {
+      label = "⤫";
     }
     button.className = "touch-button";
     button.setAttribute("data-button", buttonName);
@@ -503,17 +516,14 @@ function renderTouchControllerButtons() {
       continue;
     }
 
-    let isPill = buttonName === "SELECT" || buttonName === "START";
-    let width = isPill ? Math.round(buttonConfig.size * 1.7) : buttonConfig.size;
-    let height = isPill ? Math.max(24, Math.round(buttonConfig.size * 0.68)) : buttonConfig.size;
-
     button.style.left = buttonConfig.x + "%";
     button.style.top = buttonConfig.y + "%";
-    button.style.width = width + "px";
-    button.style.height = height + "px";
-    button.style.fontSize = Math.max(12, Math.round(height * 0.28)) + "px";
+    button.style.width = buttonConfig.size + "px";
+    button.style.height = buttonConfig.size + "px";
+    button.style.fontSize = Math.max(12, Math.round(buttonConfig.size * 0.3)) + "px";
     button.className = "touch-button " +
-      (isPill ? "touch-pill" : "touch-round") +
+      "touch-square" +
+      (buttonName === "EXIT" ? " touch-exit" : "") +
       (buttonName === "UP" || buttonName === "DOWN" || buttonName === "LEFT" || buttonName === "RIGHT" ? " touch-dir" : "");
   }
 }
@@ -550,14 +560,29 @@ function handleTouchControllerTouches(e) {
 }
 
 function getTouchControllerButtonAt(clientX, clientY) {
-  let target = document.elementFromPoint(clientX, clientY);
-  while(target) {
-    if(target.getAttribute && target.getAttribute("data-button")) {
-      return target.getAttribute("data-button");
-    }
-    target = target.parentNode;
+  let bounds = touchControllerArea.getBoundingClientRect();
+  if(clientX < bounds.left || clientX > bounds.right || clientY < bounds.top || clientY > bounds.bottom) {
+    return null;
   }
-  return null;
+
+  let nearestButtonName = null;
+  let nearestDistanceSq = Infinity;
+  for(let buttonName in touchControllerButtons) {
+    let buttonConfig = touchControllerConfig.buttons[buttonName];
+    if(!buttonConfig) {
+      continue;
+    }
+    let centerX = bounds.left + (bounds.width * (buttonConfig.x / 100));
+    let centerY = bounds.top + (bounds.height * (buttonConfig.y / 100));
+    let dx = clientX - centerX;
+    let dy = clientY - centerY;
+    let distanceSq = (dx * dx) + (dy * dy);
+    if(distanceSq < nearestDistanceSq) {
+      nearestDistanceSq = distanceSq;
+      nearestButtonName = buttonName;
+    }
+  }
+  return nearestButtonName;
 }
 
 function syncTouchControllerAssignments(nextAssignments) {
@@ -567,7 +592,11 @@ function syncTouchControllerAssignments(nextAssignments) {
   TOUCH_CONTROLLER_BUTTONS.forEach(function(buttonName) {
     let hadButton = !!prevCounts[buttonName];
     let hasButton = !!nextCounts[buttonName];
-    if(!hadButton && hasButton) {
+    if(buttonName === "EXIT") {
+      if(!hadButton && hasButton && isAnyFullscreenActive()) {
+        exitFullscreenMode();
+      }
+    } else if(!hadButton && hasButton) {
       nes.setButtonPressed(1, nes.INPUT[buttonName]);
     } else if(hadButton && !hasButton) {
       nes.setButtonReleased(1, nes.INPUT[buttonName]);
@@ -591,8 +620,10 @@ function countTouchControllerAssignments(assignments) {
 
 function releaseTouchControllerButtons() {
   touchControllerAssignments = {};
-  TOUCH_CONTROLLER_BUTTONS.forEach(function(buttonName) {
+  TOUCH_CONTROLLER_NES_BUTTONS.forEach(function(buttonName) {
     nes.setButtonReleased(1, nes.INPUT[buttonName]);
+  });
+  TOUCH_CONTROLLER_BUTTONS.forEach(function(buttonName) {
     if(touchControllerButtons[buttonName]) {
       touchControllerButtons[buttonName].classList.remove("pressed");
     }
@@ -629,7 +660,12 @@ const MAX_GAMEPAD_NAME_LENGTH = 40;
 const GAMEPAD_NAME_TRUNCATE_LENGTH = 37;
 
 document.addEventListener("fullscreenchange", function() {
-  isFullscreen = !!document.fullscreenElement;
+  isFullscreen = isAnyFullscreenActive();
+  el("fullscreen").textContent = isFullscreen ? "⛶ Exit Fullscreen" : "⛶ Fullscreen";
+});
+
+document.addEventListener("webkitfullscreenchange", function() {
+  isFullscreen = isAnyFullscreenActive();
   el("fullscreen").textContent = isFullscreen ? "⛶ Exit Fullscreen" : "⛶ Fullscreen";
 });
 
@@ -663,6 +699,11 @@ function updateGamepadStatus(playerIdx, label) {
 }
 
 window.onkeydown = function(e) {
+  if(e.key === "Escape" && isAnyFullscreenActive()) {
+    exitFullscreenMode();
+    e.preventDefault();
+    return;
+  }
   if(controlsP1[e.key.toLowerCase()] !== undefined) {
     nes.setButtonPressed(1, controlsP1[e.key.toLowerCase()]);
     e.preventDefault();

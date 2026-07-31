@@ -1,12 +1,15 @@
 (function(window) {
   const COOKIE_KEY = "nesjs_touch_controller";
-  const BUTTON_ORDER = ["UP", "DOWN", "LEFT", "RIGHT", "SELECT", "START", "B", "A"];
+  const BUTTON_ORDER = ["UP", "DOWN", "LEFT", "RIGHT", "SELECT", "EXIT", "START", "B", "A"];
   const BUTTON_NAME_MAP = {
     up: "UP",
     down: "DOWN",
     left: "LEFT",
     right: "RIGHT",
     select: "SELECT",
+    exit: "EXIT",
+    exitfullscreen: "EXIT",
+    exit_fullscreen: "EXIT",
     start: "START",
     b: "B",
     a: "A"
@@ -21,6 +24,7 @@
       LEFT: { x: 10, y: 50, size: 52 },
       RIGHT: { x: 34, y: 50, size: 52 },
       SELECT: { x: 50, y: 70, size: 44 },
+      EXIT: { x: 56, y: 70, size: 28 },
       START: { x: 63, y: 70, size: 44 },
       B: { x: 78, y: 52, size: 58 },
       A: { x: 91, y: 36, size: 58 }

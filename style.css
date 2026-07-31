@@ -79,14 +79,16 @@ pre {
   border: 2px solid rgba(255, 255, 255, 0.25);
   box-sizing: border-box;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
 }
 
-.touch-button.touch-round {
-  border-radius: 999px;
+.touch-button.touch-square {
+  border-radius: 6px;
 }
 
-.touch-button.touch-pill {
-  border-radius: 999px;
+.touch-button.touch-exit {
+  background: rgba(120, 120, 120, 0.92);
+  font-size: 15px !important;
 }
 
 .touch-button.pressed {
@@ -106,7 +108,6 @@ pre {
   width: 100%;
   height: 100%;
   background: #000;
-  cursor: none;
 }
 
 #screen-wrap:fullscreen #game-area {
@@ -144,7 +145,6 @@ pre {
   width: 100%;
   height: 100%;
   background: #000;
-  cursor: none;
 }
 
 #screen-wrap:-webkit-full-screen #game-area {
