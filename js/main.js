@@ -538,6 +538,11 @@ function bindTouchControllerEvents() {
   touchControllerArea.addEventListener("touchmove", handleTouchControllerTouches, false);
   touchControllerArea.addEventListener("touchend", handleTouchControllerTouches, false);
   touchControllerArea.addEventListener("touchcancel", handleTouchControllerTouches, false);
+  touchControllerArea.addEventListener("pointerdown", handleTouchControllerPointer, false);
+  touchControllerArea.addEventListener("pointermove", handleTouchControllerPointer, false);
+  touchControllerArea.addEventListener("pointerup", handleTouchControllerPointer, false);
+  touchControllerArea.addEventListener("pointercancel", handleTouchControllerPointer, false);
+  touchControllerArea.addEventListener("pointerleave", handleTouchControllerPointer, false);
 }
 
 function handleTouchControllerTouches(e) {
@@ -555,6 +560,33 @@ function handleTouchControllerTouches(e) {
     let buttonName = getTouchControllerButtonAt(touch.clientX, touch.clientY);
     if(buttonName) {
       nextAssignments[touch.identifier] = buttonName;
+    }
+  }
+  syncTouchControllerAssignments(nextAssignments);
+}
+
+function handleTouchControllerPointer(e) {
+  if(e.pointerType === "touch" || !touchControllerConfig.enabled) {
+    return;
+  }
+
+  if(e.cancelable) {
+    e.preventDefault();
+  }
+
+  let pointerId = "pointer-" + e.pointerId;
+  let nextAssignments = Object.assign({}, touchControllerAssignments);
+  if(e.type === "pointerup" || e.type === "pointercancel" || e.type === "pointerleave") {
+    delete nextAssignments[pointerId];
+  } else {
+    let buttonName = getTouchControllerButtonAt(e.clientX, e.clientY);
+    if(buttonName) {
+      if(e.type === "pointerdown" && touchControllerArea.setPointerCapture) {
+        touchControllerArea.setPointerCapture(e.pointerId);
+      }
+      nextAssignments[pointerId] = buttonName;
+    } else {
+      delete nextAssignments[pointerId];
     }
   }
   syncTouchControllerAssignments(nextAssignments);
