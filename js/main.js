@@ -54,7 +54,7 @@ function exitFullscreenMode() {
 }
 
 c.addEventListener("dblclick", function() {
-  if (!document.fullscreenElement) {
+  if (!isAnyFullscreenActive()) {
     if (screenWrap.requestFullscreen) {
       screenWrap.requestFullscreen().catch(function(err) {
         log("Fullscreen error: " + err.message);
